@@ -2,14 +2,13 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 // API 基础地址配置
-// 直接硬编码生产环境后端地址（确保能正常工作）
 const getBaseUrl = () => {
-  // 生产环境：直接连接到 Render 后端
+  // 生产环境：直接连接到 Render 后端（需要 /api 前缀匹配后端路由）
   if (import.meta.env.PROD || window.location.hostname !== 'localhost') {
-    return 'https://ai-trade-platform-api.onrender.com'
+    return 'https://ai-trade-platform-api.onrender.com/api'
   }
   
-  // 开发环境：使用 Vite proxy
+  // 开发环境：使用 Vite proxy（proxy 已配置 /api -> localhost:8000）
   return '/api'
 }
 
