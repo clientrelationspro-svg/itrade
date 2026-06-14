@@ -8,8 +8,11 @@ databases:
 services:
   - type: web
     name: ai-trade-platform-api
-    runtime: docker
+    rootDir: backend
+    runtime: python
     plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: SILICONFLOW_API_KEY
         value: sk-tkmklxuruwxdqbuqzpcqucbzbcjwomvxuzcththgmwjtpxdz
