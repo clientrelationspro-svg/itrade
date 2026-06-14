@@ -9,10 +9,8 @@ services:
   - type: web
     name: ai-trade-platform-api
     rootDir: backend
-    runtime: python
+    runtime: docker
     plan: free
-    buildCommand: bash build.sh
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: SILICONFLOW_API_KEY
         value: sk-tkmklxuruwxdqbuqzpcqucbzbcjwomvxuzcththgmwjtpxdz
