@@ -1,9 +1,9 @@
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel
 from functools import lru_cache
 import os
 
 
-class Settings(BaseSettings):
+class Settings(BaseModel):
     # App
     APP_NAME: str = "AI外贸工作平台"
     APP_VERSION: str = "1.0.0"
@@ -38,11 +38,15 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    # 从环境变量读取配置
+    return Settings(
+        APP_NAME=os.getenv("APP_NAME", "AI外贸工作平台"),
+        DATABASE_URL=os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./ai_trade.db"),
+        SECRET_KEY=os.getenv("JWT_SECRET", "change-this-secret-key-in-production"),
+        ACCESS_TOKEN_EXPIRE_MINUTES=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")),
+        SILICONFLOW_API_KEY=os.getenv("SILICONFLOW_API_KEY", ""),
+        AI_MODEL_VISION=os.getenv("AI_MODEL_VISION", "Qwen/Qwen3-VL-8B-Instruct"),
+    )
