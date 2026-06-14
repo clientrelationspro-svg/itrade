@@ -68,7 +68,7 @@ class CustomerResponse(CustomerCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Supplier ───
@@ -101,7 +101,7 @@ class SupplierResponse(SupplierCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Product ───
@@ -133,7 +133,7 @@ class ProductResponse(ProductCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Inquiry ───
@@ -161,7 +161,7 @@ class InquiryResponse(InquiryCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Contract ───
@@ -196,7 +196,7 @@ class ContractResponse(ContractCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Order ───
@@ -236,7 +236,7 @@ class OrderResponse(OrderCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Inspection ───
@@ -267,7 +267,7 @@ class InspectionResponse(InspectionCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Shipment ───
@@ -299,7 +299,7 @@ class ShipmentResponse(ShipmentCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Payment ───
@@ -329,7 +329,7 @@ class PaymentResponse(PaymentCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── Document ───
@@ -378,7 +378,7 @@ class DocumentResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── System Setting ───
@@ -396,7 +396,7 @@ class SettingResponse(SettingCreate):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 # ─── AI Endpoints ───
