@@ -19,7 +19,8 @@ os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup - 初始化数据库
+    await init_db()
     yield
     # Shutdown
 
