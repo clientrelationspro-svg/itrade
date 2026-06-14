@@ -31,10 +31,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS - 允许前端访问
+# 注意：allow_credentials=True 时，allow_origins 不能是 ["*"]
+frontend_url = os.getenv("FRONTEND_URL", "https://frontend-ten-teal-98.vercel.app")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[frontend_url, "http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

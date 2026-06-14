@@ -4,21 +4,27 @@ import { ElMessage } from 'element-plus'
 // 支持环境变量配置 API 地址
 // 优先级：环境变量 > 硬编码生产 URL > 相对路径（开发环境）
 function getBaseUrl() {
-  // 1. 尝试读取环境变量
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL
+  // 1. 尝试读取环境变量（Vite 会在构建时替换）
+  const envApiUrl = import.meta.env.VITE_API_URL
+  if (envApiUrl) {
+    console.log('Using VITE_API_URL:', envApiUrl)
+    return envApiUrl
   }
   
-  // 2. 生产环境硬编码回退值
-  if (import.meta.env.PROD) {
+  // 2. 生产环境判断（Vite 的 MODE 环境变量）
+  const isProduction = import.meta.env.MODE === 'production' || import.meta.env.BASE_URL === '/'
+  if (isProduction) {
+    console.log('Production mode: using hardcoded backend URL')
     return 'https://ai-trade-platform-api.onrender.com'
   }
   
   // 3. 开发环境使用相对路径（通过 Vite proxy 转发）
+  console.log('Development mode: using /api proxy')
   return '/api'
 }
 
 const BASE_URL = getBaseUrl()
+console.log('API Base URL:', BASE_URL)
 
 const api = axios.create({
   baseURL: BASE_URL,
