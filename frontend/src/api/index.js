@@ -17,8 +17,11 @@ const api = axios.create({
   timeout: 30000,
 })
 
-// Request interceptor
+// Request interceptor - 记录每次请求的完整 URL
 api.interceptors.request.use((config) => {
+  const fullUrl = (config.baseURL || '') + (config.url || '')
+  console.log('[API] 📤', config.method?.toUpperCase(), fullUrl)
+  
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -26,11 +29,18 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Response interceptor
+// Response interceptor - 详细的错误日志
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    console.log('[API] ✅', response.config.method?.toUpperCase(), response.config.url, response.status)
+    return response.data
+  },
   (error) => {
-    const msg = error.response?.data?.detail || error.message || 'Request failed'
+    const fullUrl = (error.config?.baseURL || '') + (error.config?.url || '')
+    const status = error.response?.status || 'NETWORK_ERROR'
+    console.error('[API] ❌', status, fullUrl, error.response?.data || error.message)
+    
+    const msg = `${status}: ${error.response?.data?.detail || error.message}`
     ElMessage.error(msg)
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
