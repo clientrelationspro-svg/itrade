@@ -12,7 +12,7 @@ python-multipart==0.0.6
 httpx==0.25.1
 aiofiles==23.2.1
 openpyxl==3.1.2
-pgvector==0.2.6
+pgvector==0.2.5
 python-dotenv==1.0.0
 celery==5.3.4
 redis==5.0.1
