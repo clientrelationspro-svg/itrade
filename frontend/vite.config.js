@@ -15,9 +15,6 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
     }),
   ],
-  define: {
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

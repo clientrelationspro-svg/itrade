@@ -1,20 +1,14 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-// 直接硬编码后端地址，不做任何判断
 const BASE_URL = 'https://ai-trade-platform-api.onrender.com/api'
-console.log('[API v3] 硬编码 BASE_URL:', BASE_URL)
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
 })
 
-// Request interceptor - 记录每次请求的完整 URL
 api.interceptors.request.use((config) => {
-  const fullUrl = (config.baseURL || '') + (config.url || '')
-  console.log('[API] 📤', config.method?.toUpperCase(), fullUrl)
-  
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -22,18 +16,10 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Response interceptor - 详细的错误日志
 api.interceptors.response.use(
-  (response) => {
-    console.log('[API] ✅', response.config.method?.toUpperCase(), response.config.url, response.status)
-    return response.data
-  },
+  (response) => response.data,
   (error) => {
-    const fullUrl = (error.config?.baseURL || '') + (error.config?.url || '')
-    const status = error.response?.status || 'NETWORK_ERROR'
-    console.error('[API] ❌', status, fullUrl, error.response?.data || error.message)
-    
-    const msg = `${status}: ${error.response?.data?.detail || error.message}`
+    const msg = error.response?.data?.detail || error.message || 'Request failed'
     ElMessage.error(msg)
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
