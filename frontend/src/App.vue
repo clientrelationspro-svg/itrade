@@ -17,7 +17,7 @@
 import { ref, onMounted } from 'vue'
 
 const showDebug = ref(true)
-const buildTime = '__BUILD_TIME__'
+const buildTime = __BUILD_TIME__
 const apiUrl = 'https://ai-trade-platform-api.onrender.com/api'
 const testUrl = window.location.origin + '/test-api.html'
 const testResult = ref('')
