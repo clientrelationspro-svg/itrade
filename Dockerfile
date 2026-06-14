@@ -6,7 +6,6 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
-COPY backend/build.sh . 2>/dev/null || true
 
 EXPOSE 8000
 
