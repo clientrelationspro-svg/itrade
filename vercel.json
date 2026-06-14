@@ -11,9 +11,8 @@
   ],
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "/frontend/dist/$1",
-      "continue": true
+      "src": "/(.*)\\.(.*)",
+      "dest": "/frontend/dist/$1.$2"
     },
     {
       "src": "/(.*)",
