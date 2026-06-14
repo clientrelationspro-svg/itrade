@@ -104,7 +104,14 @@ def create_crud_router(
     @router.post("", response_model=response_schema, status_code=201)
     async def create_item(data: create_schema, db: AsyncSession = Depends(get_db)):
         """新增记录"""
-        item = model(**data.dict(exclude_unset=True))
+        # 清理数据：空字符串和空列表 → None
+        data_dict = {}
+        for k, v in data.dict(exclude_unset=True).items():
+            if v == "" or v == []:
+                data_dict[k] = None
+            else:
+                data_dict[k] = v
+        item = model(**data_dict)
         # Auto-generate code
         if hasattr(model, "code") and not getattr(item, "code", None):
             item.code = f"{prefix.upper()[:3]}-{uuid.uuid4().hex[:8].upper()}"
@@ -125,7 +132,11 @@ def create_crud_router(
         if not item:
             return {"detail": f"{model_name} not found"}
         for key, value in data.dict(exclude_unset=True).items():
-            setattr(item, key, value)
+            # 清理：空字符串/空列表 → None
+            if value == "" or value == []:
+                setattr(item, key, None)
+            else:
+                setattr(item, key, value)
         await db.flush()
         await db.refresh(item)
         return item
