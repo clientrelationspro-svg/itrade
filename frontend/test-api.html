@@ -3,28 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API 连接测试</title>
+  <title>API 连接测试工具</title>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-    button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
-    pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
-    .success { color: green; }
-    .error { color: red; }
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
+    .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: #333; }
+    button { padding: 12px 24px; margin: 10px 5px; cursor: pointer; border: none; border-radius: 5px; font-size: 16px; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-secondary:hover { background: #545b62; }
+    pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; border: 1px solid #dee2e6; }
+    .success { color: #28a745; font-weight: bold; }
+    .error { color: #dc3545; font-weight: bold; }
+    .warning { color: #ffc107; font-weight: bold; }
+    .info { color: #17a2b8; }
+    #result { margin-top: 20px; }
+    .step { margin: 10px 0; padding: 10px; background: #f8f9fa; border-left: 3px solid #007bff; }
   </style>
 </head>
 <body>
-  <h1>🔧 API 连接测试工具</h1>
-  
-  <div>
-    <strong>后端 URL:</strong> <code id="api-url">检测中...</code>
+  <div class="container">
+    <h1>🔧 API 连接测试工具</h1>
+    <p>这个工具会测试前端是否能正确连接到后端 API。</p>
+    
+    <div>
+      <strong>后端 URL:</strong> <code id="api-url">检测中...</code>
+    </div>
+    
+    <h2>🧪 测试结果:</h2>
+    <div id="result">等待测试...</div>
+    
+    <div style="margin-top: 20px;">
+      <button class="btn-primary" onclick="testAPI()">🚀 开始测试 API 连接</button>
+      <button class="btn-secondary" onclick="clearResult()">🧹 清空结果</button>
+    </div>
   </div>
-  
-  <h2>🧪 测试结果:</h2>
-  <pre id="result">等待测试...</pre>
-  
-  <button onclick="testAPI()">🚀 开始测试 API 连接</button>
-  <button onclick="clearResult()">🧹 清空结果</button>
   
   <script>
     async function testAPI() {
@@ -35,34 +50,40 @@
       const apiUrl = 'https://ai-trade-platform-api.onrender.com';
       apiUrlEl.textContent = apiUrl;
       
-      resultEl.textContent = '⏳ 测试中...\n\n';
+      resultEl.innerHTML = '<div class="step">⏳ 测试中...</div>';
+      
+      let results = [];
       
       try {
         // 测试 1: 根路径
-        resultEl.textContent += '1️⃣ 测试根路径 (GET /)...\n';
-        const rootResp = await axios.get(apiUrl + '/');
-        resultEl.textContent += '✅ 成功: ' + JSON.stringify(rootResp.data) + '\n\n';
+        results.push('<div class="step"><strong>1️⃣ 测试根路径 (GET /)...</strong></div>');
+        try {
+          const rootResp = await axios.get(apiUrl + '/');
+          results.push('<div class="success">✅ 成功: ' + JSON.stringify(rootResp.data) + '</div>');
+        } catch (err) {
+          results.push('<div class="error">❌ 失败: ' + err.message + '</div>');
+        }
         
         // 测试 2: 登录 API（预期 401）
-        resultEl.textContent += '2️⃣ 测试登录 API (POST /api/auth/login)...\n';
+        results.push('<div class="step"><strong>2️⃣ 测试登录 API (POST /api/auth/login)...</strong></div>');
         try {
           const loginResp = await axios.post(apiUrl + '/api/auth/login', {
             username: 'test',
             password: 'test'
           });
-          resultEl.textContent += '✅ 登录成功: ' + JSON.stringify(loginResp.data) + '\n\n';
+          results.push('<div class="success">✅ 登录成功: ' + JSON.stringify(loginResp.data) + '</div>');
         } catch (loginErr) {
           if (loginErr.response && loginErr.response.status === 401) {
-            resultEl.textContent += '✅ 登录 API 正常 (返回 401 未授权): ' + JSON.stringify(loginErr.response.data) + '\n\n';
+            results.push('<div class="success">✅ 登录 API 正常 (返回 401 未授权): ' + JSON.stringify(loginErr.response.data) + '</div>');
           } else if (loginErr.response) {
-            resultEl.textContent += '⚠️ 登录 API 返回: ' + loginErr.response.status + ' ' + JSON.stringify(loginErr.response.data) + '\n\n';
+            results.push('<div class="warning">⚠️ 登录 API 返回: ' + loginErr.response.status + ' ' + JSON.stringify(loginErr.response.data) + '</div>');
           } else {
-            resultEl.textContent += '❌ 登录 API 失败: ' + loginErr.message + '\n\n';
+            results.push('<div class="error">❌ 登录 API 失败: ' + loginErr.message + '</div>');
           }
         }
         
         // 测试 3: CORS 预检请求
-        resultEl.textContent += '3️⃣ 测试 CORS 配置...\n';
+        results.push('<div class="step"><strong>3️⃣ 测试 CORS 配置...</strong></div>');
         try {
           const corsResp = await axios.options(apiUrl + '/api/auth/login', {
             headers: {
@@ -70,27 +91,40 @@
               'Access-Control-Request-Headers': 'Authorization, Content-Type'
             }
           });
-          resultEl.textContent += '✅ CORS 预检成功\n\n';
+          results.push('<div class="success">✅ CORS 预检成功</div>');
         } catch (corsErr) {
-          resultEl.textContent += '⚠️ CORS 预检失败 (可能是正常行为): ' + (corsErr.response?.status || corsErr.message) + '\n\n';
+          results.push('<div class="warning">⚠️ CORS 预检失败 (可能是正常行为): ' + (corsErr.response?.status || corsErr.message) + '</div>');
         }
         
-        resultEl.textContent += '✅ 所有测试完成！后端 API 正常工作。\n';
-        resultEl.className = 'success';
+        // 测试 4: 检查 CORS 头
+        results.push('<div class="step"><strong>4️⃣ 检查 CORS 响应头...</strong></div>');
+        try {
+          const headResp = await axios.head(apiUrl + '/');
+          const corsHeader = headResp.headers['access-control-allow-origin'];
+          if (corsHeader) {
+            results.push('<div class="success">✅ CORS 头正确: Access-Control-Allow-Origin = ' + corsHeader + '</div>');
+          } else {
+            results.push('<div class="warning">⚠️ 没有找到 CORS 头（可能是配置问题）</div>');
+          }
+        } catch (headErr) {
+          results.push('<div class="error">❌ 无法检查响应头: ' + headErr.message + '</div>');
+        }
+        
+        results.push('<div class="step"><strong>✅ 所有测试完成！</strong></div>');
+        resultEl.innerHTML = results.join('\n');
         
       } catch (err) {
-        resultEl.textContent += '❌ 测试失败: ' + err.message + '\n';
+        results.push('<div class="error">❌ 测试失败: ' + err.message + '</div>');
         if (err.response) {
-          resultEl.textContent += '响应状态: ' + err.response.status + '\n';
-          resultEl.textContent += '响应数据: ' + JSON.stringify(err.response.data) + '\n';
+          results.push('<div class="error">响应状态: ' + err.response.status + '</div>');
+          results.push('<div class="error">响应数据: ' + JSON.stringify(err.response.data) + '</div>');
         }
-        resultEl.className = 'error';
+        resultEl.innerHTML = results.join('\n');
       }
     }
     
     function clearResult() {
-      document.getElementById('result').textContent = '等待测试...';
-      document.getElementById('result').className = '';
+      document.getElementById('result').innerHTML = '等待测试...';
     }
   </script>
 </body>
