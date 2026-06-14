@@ -10,7 +10,9 @@ from app.database import get_db
 from app.models import User
 from app.schemas import LoginRequest, TokenResponse
 from app.config import get_settings
+import logging
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
@@ -80,21 +82,29 @@ async def register(
     request: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    username = request.username
-    password = request.password
-    email = request.email
-    full_name = request.full_name
-    existing = await db.execute(select(User).where(User.username == username))
-    if existing.scalar_one_or_none():
-        raise HTTPException(400, "Username already exists")
+    import traceback
+    try:
+        username = request.username
+        password = request.password
+        email = request.email
+        full_name = request.full_name
+        existing = await db.execute(select(User).where(User.username == username))
+        if existing.scalar_one_or_none():
+            raise HTTPException(400, "Username already exists")
 
-    user = User(
-        username=username,
-        email=email,
-        full_name=full_name,
-        hashed_password=pwd_context.hash(password),
-    )
-    db.add(user)
-    await db.flush()
-    await db.refresh(user)
-    return {"id": user.id, "username": user.username}
+        user = User(
+            username=username,
+            email=email,
+            full_name=full_name,
+            hashed_password=pwd_context.hash(password),
+        )
+        db.add(user)
+        await db.flush()
+        await db.refresh(user)
+        logger.info(f"User created: {user.username}")
+        return {"id": user.id, "username": user.username}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Register error: {e}\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Registration failed: {str(e)}")

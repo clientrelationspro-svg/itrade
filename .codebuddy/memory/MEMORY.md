@@ -37,3 +37,13 @@ AI 外贸工作平台，基于硅基流动 SiliconCloud 平台的开源模型服
 - 所有删除操作默认为软删除 (status='deleted')
 - AI 识别结果采用"人在环中"模式，用户确认后写入数据库
 - 前端代理 `/api` → `localhost:8000`，`/uploads` → `localhost:8000`
+
+## 部署信息 (2026-06-15)
+- **前端生产**: https://frontend-ten-teal-98.vercel.app (Vercel CLI 部署)
+- **后端生产**: https://ai-trade-platform-api.onrender.com (Render Docker)
+- **数据库**: Render PostgreSQL (`postgresql+asyncpg://`)
+- **前端 API 配置**: `frontend/src/api/index.js` 硬编码 `BASE_URL = 'https://ai-trade-platform-api.onrender.com/api'`
+- **Vercel 配置**: `vercel.json` 用 `rewrites` 做 SPA 回退，`outputDirectory: frontend/dist`
+- **Dockerfile**: 项目根目录，`python:3.11-slim`，需 `libpq-dev`（asyncpg 编译依赖）
+- **关键依赖**: `pydantic==1.10.13`（避免 Rust 编译），无 `pydantic-settings`
+- **部署方式**: `npx vercel --prod --yes` 从项目根目录直接部署
