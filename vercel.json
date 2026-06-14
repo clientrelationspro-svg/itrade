@@ -12,10 +12,11 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/frontend/dist/$1"
+      "dest": "/frontend/dist/$1",
+      "continue": true
     },
     {
-      "src": "/",
+      "src": "/(.*)",
       "dest": "/frontend/dist/index.html"
     }
   ]
