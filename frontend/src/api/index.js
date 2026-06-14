@@ -1,8 +1,11 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
+// 支持环境变量配置 API 地址
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: BASE_URL,
   timeout: 30000,
 })
 
