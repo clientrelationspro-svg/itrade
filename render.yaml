@@ -1,12 +1,11 @@
-services:
-  # PostgreSQL 数据库
-  - type: postgresql
-    name: ai-trade-db
+databases:
+  - name: ai-trade-db
     plan: free
     version: 16
     databaseName: ai_trade
     user: ai_trade_user
 
+services:
   # 后端 Web Service
   - type: web
     name: ai-trade-platform-api
