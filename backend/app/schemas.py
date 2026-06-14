@@ -1,16 +1,7 @@
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
-
-
-# 通用基类：自动将空字符串 "" / 空列表 [] 转为 None
-# （前端表单默认值常为空字符串，需要转换后才能通过 Decimal 等类型验证）
-class EmptyToNone(BaseModel):
-    @root_validator(pre=True)
-    def empty_to_none(cls, values):
-        # 仅将空字符串转为 None（列表 [] 保留）
-        return {k: (None if v == "" else v) for k, v in values.items()}
 
 
 # ─── Common ───
@@ -50,7 +41,7 @@ class TokenResponse(BaseModel):
 
 # ─── Customer ───
 
-class CustomerCreate(EmptyToNone):
+class CustomerCreate(BaseModel):
     name: str
     name_en: Optional[str] = None
     country: Optional[str] = None
@@ -82,7 +73,7 @@ class CustomerResponse(CustomerCreate):
 
 # ─── Supplier ───
 
-class SupplierCreate(EmptyToNone):
+class SupplierCreate(BaseModel):
     name: str
     name_en: Optional[str] = None
     country: Optional[str] = None
@@ -115,7 +106,7 @@ class SupplierResponse(SupplierCreate):
 
 # ─── Product ───
 
-class ProductCreate(EmptyToNone):
+class ProductCreate(BaseModel):
     name: str
     name_en: Optional[str] = None
     category: Optional[str] = None
@@ -147,7 +138,7 @@ class ProductResponse(ProductCreate):
 
 # ─── Inquiry ───
 
-class InquiryCreate(EmptyToNone):
+class InquiryCreate(BaseModel):
     customer_id: Optional[str] = None
     product_id: Optional[str] = None
     quantity: Optional[Decimal] = None
@@ -175,7 +166,7 @@ class InquiryResponse(InquiryCreate):
 
 # ─── Contract ───
 
-class ContractCreate(EmptyToNone):
+class ContractCreate(BaseModel):
     contract_no: str
     title: str
     customer_id: Optional[str] = None
@@ -210,7 +201,7 @@ class ContractResponse(ContractCreate):
 
 # ─── Order ───
 
-class OrderItemCreate(EmptyToNone):
+class OrderItemCreate(BaseModel):
     product_id: Optional[str] = None
     product_name: Optional[str] = None
     specification: Optional[str] = None
@@ -220,7 +211,7 @@ class OrderItemCreate(EmptyToNone):
     total_price: Optional[Decimal] = None
 
 
-class OrderCreate(EmptyToNone):
+class OrderCreate(BaseModel):
     customer_id: Optional[str] = None
     contract_id: Optional[str] = None
     total_amount: Optional[Decimal] = None
@@ -250,7 +241,7 @@ class OrderResponse(OrderCreate):
 
 # ─── Inspection ───
 
-class InspectionCreate(EmptyToNone):
+class InspectionCreate(BaseModel):
     order_id: Optional[str] = None
     inspection_date: Optional[date] = None
     inspector: Optional[str] = None
@@ -281,7 +272,7 @@ class InspectionResponse(InspectionCreate):
 
 # ─── Shipment ───
 
-class ShipmentCreate(EmptyToNone):
+class ShipmentCreate(BaseModel):
     order_id: Optional[str] = None
     vessel_name: Optional[str] = None
     voyage_no: Optional[str] = None
@@ -313,7 +304,7 @@ class ShipmentResponse(ShipmentCreate):
 
 # ─── Payment ───
 
-class PaymentCreate(EmptyToNone):
+class PaymentCreate(BaseModel):
     order_id: Optional[str] = None
     receivable: Optional[Decimal] = None
     received: Optional[Decimal] = None
@@ -343,7 +334,7 @@ class PaymentResponse(PaymentCreate):
 
 # ─── Document ───
 
-class DocumentCreate(EmptyToNone):
+class DocumentCreate(BaseModel):
     filename: str
     category: Optional[str] = None
     related_module: Optional[str] = None
@@ -392,7 +383,7 @@ class DocumentResponse(BaseModel):
 
 # ─── System Setting ───
 
-class SettingCreate(EmptyToNone):
+class SettingCreate(BaseModel):
     module: str
     key: str
     value: str
