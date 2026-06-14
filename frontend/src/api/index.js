@@ -1,16 +1,9 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-// API 基础地址配置
-// 使用运行时判断，避免构建时环境变量未正确注入
-const isLocal = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-const BASE_URL = isLocal 
-  ? '/api'                                          // 本地开发：通过 Vite proxy 转发
-  : 'https://ai-trade-platform-api.onrender.com/api' // 生产环境：直接连接 Render
-
-console.log('[API v2] Base URL:', BASE_URL, '| isLocal:', isLocal)
+// 直接硬编码后端地址，不做任何判断
+const BASE_URL = 'https://ai-trade-platform-api.onrender.com/api'
+console.log('[API v3] 硬编码 BASE_URL:', BASE_URL)
 
 const api = axios.create({
   baseURL: BASE_URL,

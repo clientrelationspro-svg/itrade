@@ -23,20 +23,21 @@ const testUrl = window.location.origin + '/test-api.html'
 const testResult = ref('')
 
 async function testConnection() {
-  testResult.value = '测试中...'
+  const testApi = apiUrl + '/auth/login'
+  testResult.value = '测试 ' + testApi + ' ...'
+  console.log('[Debug] 测试 API:', testApi)
   try {
-    const resp = await fetch(apiUrl + '/auth/login', {
+    const resp = await fetch(testApi, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: 'test', password: 'test' })
     })
-    if (resp.ok || resp.status === 401) {
-      testResult.value = '✅ 连接成功 (' + resp.status + ')'
-    } else {
-      testResult.value = '❌ 状态码: ' + resp.status
-    }
+    const data = await resp.json()
+    console.log('[Debug] 响应:', resp.status, data)
+    testResult.value = '✅ ' + resp.status + ': ' + JSON.stringify(data)
   } catch (e) {
-    testResult.value = '❌ 连接失败: ' + e.message
+    console.error('[Debug] 失败:', e)
+    testResult.value = '❌ ' + e.message
   }
 }
 
