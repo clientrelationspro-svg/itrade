@@ -2,7 +2,23 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 // 支持环境变量配置 API 地址
-const BASE_URL = import.meta.env.VITE_API_URL || '/api'
+// 优先级：环境变量 > 硬编码生产 URL > 相对路径（开发环境）
+function getBaseUrl() {
+  // 1. 尝试读取环境变量
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // 2. 生产环境硬编码回退值
+  if (import.meta.env.PROD) {
+    return 'https://ai-trade-platform-api.onrender.com'
+  }
+  
+  // 3. 开发环境使用相对路径（通过 Vite proxy 转发）
+  return '/api'
+}
+
+const BASE_URL = getBaseUrl()
 
 const api = axios.create({
   baseURL: BASE_URL,
