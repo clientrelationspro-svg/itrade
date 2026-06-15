@@ -111,14 +111,15 @@ def create_crud_router(
                 data_dict[k] = None
             else:
                 data_dict[k] = v
+        # 处理需要自动生成唯一标识的字段
+        if hasattr(model, "order_no"):
+            data_dict.setdefault("order_no", f"ORD-{uuid.uuid4().hex[:8].upper()}")
+        if hasattr(model, "contract_no"):
+            data_dict.setdefault("contract_no", f"CTR-{uuid.uuid4().hex[:8].upper()}")
+        if hasattr(model, "code"):
+            data_dict.setdefault("code", f"{prefix.upper()[:3]}-{uuid.uuid4().hex[:8].upper()}")
+        
         item = model(**data_dict)
-        # Auto-generate code
-        if hasattr(model, "code") and not getattr(item, "code", None):
-            item.code = f"{prefix.upper()[:3]}-{uuid.uuid4().hex[:8].upper()}"
-        if hasattr(model, "order_no") and not getattr(item, "order_no", None):
-            item.order_no = f"ORD-{uuid.uuid4().hex[:8].upper()}"
-        if hasattr(model, "contract_no") and not getattr(item, "contract_no", None):
-            item.contract_no = f"CTR-{uuid.uuid4().hex[:8].upper()}"
         db.add(item)
         await db.flush()
         await db.refresh(item)
