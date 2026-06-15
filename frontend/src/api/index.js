@@ -15,14 +15,7 @@ api.interceptors.request.use((config) => {
   }
   // 清理请求体：空字符串 → null（避免 Decimal 等类型验证报错）
   if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
-    const clean = (obj) => {
-      for (const k in obj) {
-        if (obj[k] === '') obj[k] = null
-        else if (Array.isArray(obj[k])) obj[k] = obj[k].map(v => v === '' ? null : v)
-        else if (typeof obj[k] === 'object' && obj[k] !== null) clean(obj[k])
-      }
-    }
-    clean(config.data)
+    config.data = JSON.parse(JSON.stringify(config.data, (key, value) => value === '' ? null : value))
   }
   return config
 })
