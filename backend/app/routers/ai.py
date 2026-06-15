@@ -1,10 +1,14 @@
 """
 AI 智能路由 - 所有 AI 增强功能端点
+包含：OCR识别、翻译、HS推荐、合同解析、报价对比、风险预警、
+       信用评估、网站分析、自然语言搜索、报告生成、文档分类、
+       智能网络搜索、API配置管理
 """
 import uuid
 import os
+import json as _json
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +40,6 @@ async def ai_ocr_extract(
         contents = await file.read()
 
         if module == "ocr_text":
-            # 纯文本提取
             result = await ai_service.vision_ocr(
                 contents,
                 prompt or "请提取该文档中的所有文字信息。",
@@ -47,7 +50,6 @@ async def ai_ocr_extract(
                 "raw": result,
             }
 
-        # 表单字段填充
         result = await ai_agents.ocr_fill_form(contents, module, file.content_type or "image/png")
         return result
     except Exception as e:
@@ -63,13 +65,11 @@ async def ai_ocr_extract_fields(
 ):
     """从图片中提取指定字段"""
     try:
-        import json as _json
         field_list = _json.loads(fields)
         contents = await file.read()
         result = await ai_service.vision_extract_fields(
             contents, field_list, file.content_type or "image/png"
         )
-        # 解析响应内容
         content = result["choices"][0]["message"]["content"]
         parsed = ai_agents._parse_json(content)
         return parsed
@@ -126,11 +126,6 @@ class ContractParseRequest(BaseModel):
     contract_text: str
 
 
-class ContractTextRequest(BaseModel):
-    text: str
-    target_lang: str = "en"
-
-
 @router.post("/contract/parse")
 async def ai_contract_parse(request: ContractParseRequest):
     """智能解析合同文本"""
@@ -142,14 +137,12 @@ async def ai_contract_parse(request: ContractParseRequest):
 async def ai_contract_parse_file(file: UploadFile = File(...)):
     """上传合同文件，智能解析"""
     contents = await file.read()
-    # 先用 OCR 提取文字
     ocr_result = await ai_service.vision_ocr(
         contents,
         "请提取该合同文件的完整文本内容。",
         file.content_type or "application/pdf",
     )
     text = ocr_result["choices"][0]["message"]["content"]
-    # 再解析合同
     result = await ai_agents.parse_contract(text)
     result["raw_text"] = text
     return result
@@ -182,7 +175,7 @@ async def ai_order_risk(request: AIRiskRequest, db: AsyncSession = Depends(get_d
     order_data = {
         "order_no": order.order_no,
         "total_amount": str(order.total_amount) if order.total_amount else None,
-        "status": order.status.value if order.status else None,
+        "status": order.status if order.status else None,
         "delivery_deadline": str(order.delivery_deadline) if order.delivery_deadline else None,
         "notes": order.notes,
     }
@@ -199,7 +192,7 @@ async def ai_order_risk(request: AIRiskRequest, db: AsyncSession = Depends(get_d
 @router.post("/credit/assess")
 async def ai_credit_assess(request: AICreditRequest, db: AsyncSession = Depends(get_db)):
     """客户信用评估"""
-    from app.models import Customer, Payment
+    from app.models import Customer, Payment, Order
     c_result = await db.execute(select(Customer).where(Customer.id == request.customer_id))
     customer = c_result.scalar_one_or_none()
     if not customer:
@@ -208,19 +201,19 @@ async def ai_credit_assess(request: AICreditRequest, db: AsyncSession = Depends(
     customer_data = {
         "name": customer.name,
         "country": customer.country,
-        "credit_rating": customer.credit_rating.value if customer.credit_rating else None,
+        "credit_rating": customer.credit_rating if customer.credit_rating else None,
     }
 
-    # 获取历史付款记录
     p_result = await db.execute(
-        select(Payment).join(Payment.order).where(Payment.order.has(customer_id=request.customer_id))
+        select(Payment).join(Order, Payment.order_id == Order.id)
+        .where(Order.customer_id == request.customer_id)
     )
     payments = p_result.scalars().all()
     payment_history = [
         {
             "receivable": str(p.receivable) if p.receivable else None,
             "received": str(p.received) if p.received else None,
-            "status": p.status.value if p.status else None,
+            "status": p.status if p.status else None,
             "due_date": str(p.due_date) if p.due_date else None,
         }
         for p in payments
@@ -245,76 +238,146 @@ async def ai_website_analyze(request: WebsiteAnalyzeRequest):
     try:
         import requests
         from bs4 import BeautifulSoup
-        
-        # 1. 获取网页内容
+
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         response = requests.get(request.website_url, headers=headers, timeout=10)
         response.raise_for_status()
-        
-        # 2. 解析 HTML
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 3. 提取文本内容（限制长度以避免 token 过多）
-        text_content = soup.get_text(separator=' ', strip=True)[:5000]
-        
-        # 4. 使用 AI 分析提取信息
-        prompt = """请分析以下公司网站内容，提取关键信息并以 JSON 格式返回。
 
-需要提取的字段：{fields}
+        soup = BeautifulSoup(response.text, 'html.parser')
+        text_content = soup.get_text(separator=' ', strip=True)[:5000]
+
+        prompt = f"""请分析以下公司网站内容，提取关键信息并以 JSON 格式返回。
+
+需要提取的字段：{', '.join(request.fields)}
 
 网站内容：
-{content}
+{text_content}
 
 请严格按照以下 JSON 格式返回，不要包含其他内容：
 {{
-    "name": "公司名称（中文）",
+    "name": "公司名称",
     "name_en": "公司英文名称",
     "country": "所在国家",
     "contact_person": "联系人姓名",
     "email": "联系邮箱",
     "phone": "联系电话",
     "address": "公司地址",
-    "website": "{url}"
+    "website": "{request.website_url}"
 }}
 
-如果某个字段无法提取，请设置为空字符串。""".format(
-    fields=', '.join(request.fields),
-    content=text_content,
-    url=request.website_url
-)
+如果某个字段无法提取，请设置为空字符串。"""
 
-        messages = [{
-            "role": "user",
-            "content": prompt
-        }]
-        
+        messages = [{"role": "user", "content": prompt}]
         result = await ai_service.chat_daily(messages, temperature=0.3)
         content = result["choices"][0]["message"]["content"]
-        
-        # 5. 解析 JSON 响应
-        import json
-        # 尝试提取 JSON（可能包含在 markdown 代码块中）
+
         if "```json" in content:
             json_str = content.split("```json")[1].split("```")[0].strip()
         elif "```" in content:
             json_str = content.split("```")[1].split("```")[0].strip()
         else:
             json_str = content.strip()
-        
-        parsed = json.loads(json_str)
+
+        parsed = _json.loads(json_str)
         return parsed
-        
+
     except requests.RequestException as e:
         logger.error(f"网站访问失败: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"无法访问网站: {str(e)}")
-    except json.JSONDecodeError as e:
+    except _json.JSONDecodeError as e:
         logger.error(f"AI 响应解析失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="AI 分析结果解析失败")
     except Exception as e:
         logger.error(f"网站分析错误: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"网站分析失败: {str(e)}")
+
+
+# ═══════════════════════════════════════
+# 智能网络搜索 - 搜索公司/产品信息
+# ═══════════════════════════════════════
+
+class WebSearchRequest(BaseModel):
+    query: str = Field(description="搜索关键词")
+    search_type: str = Field(default="company", description="搜索类型: company/product/hs_code/trade_policy")
+    fields: list[str] = Field(default=[], description="需要提取的字段")
+
+
+@router.post("/web-search")
+async def ai_web_search(request: WebSearchRequest):
+    """智能网络搜索 - 利用 AI 搜索并解析公司/产品/HS编码/贸易政策信息"""
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+
+        # 使用 DuckDuckGo 搜索（无需 API Key）
+        search_url = "https://html.duckduckgo.com/html/"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        }
+
+        resp = requests.post(search_url, data={"q": request.query}, headers=headers, timeout=15)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        # 提取搜索结果摘要
+        results = []
+        for item in soup.select('.result')[:5]:
+            title_el = item.select_one('.result__title')
+            snippet_el = item.select_one('.result__snippet')
+            link_el = item.select_one('.result__url')
+            if title_el and snippet_el:
+                results.append({
+                    "title": title_el.get_text(strip=True),
+                    "snippet": snippet_el.get_text(strip=True),
+                    "url": link_el.get_text(strip=True) if link_el else "",
+                })
+
+        if not results:
+            return {"query": request.query, "results": [], "extracted": {}, "note": "未找到搜索结果"}
+
+        # 构建搜索结果摘要文本
+        search_summary = "\n\n".join([
+            f"标题: {r['title']}\n摘要: {r['snippet']}\nURL: {r['url']}"
+            for r in results
+        ])
+
+        # 用 AI 解析搜索结果
+        fields_str = ", ".join(request.fields) if request.fields else "公司名称, 国家, 联系人, 邮箱, 电话, 地址"
+        type_prompts = {
+            "company": f"从以下搜索结果中提取公司信息，返回JSON: {{\"name\":\"\",\"country\":\"\",\"industry\":\"\",\"description\":\"\",\"website\":\"\",\"email\":\"\",\"phone\":\"\"}}",
+            "product": f"从以下搜索结果中提取产品信息，返回JSON: {{\"name\":\"\",\"hs_code\":\"\",\"specification\":\"\",\"price_range\":\"\",\"supplier\":\"\",\"category\":\"\"}}",
+            "hs_code": f"从以下搜索结果中确定HS编码，返回JSON: {{\"hs_code\":\"\",\"chapter\":\"\",\"description\":\"\",\"confidence\":\"\",\"note\":\"\"}}",
+            "trade_policy": f"从以下搜索结果中提取贸易政策信息，返回JSON: {{\"policy_title\":\"\",\"country\":\"\",\"effective_date\":\"\",\"summary\":\"\",\"impact\":\"\",\"source\":\"\"}}",
+        }
+
+        prompt = type_prompts.get(request.search_type, type_prompts["company"])
+        messages = [{
+            "role": "user",
+            "content": f"""请从以下网络搜索结果中，提取与"{request.query}"相关的关键信息。
+
+{prompt}
+
+搜索结果：
+{search_summary[:4000]}
+
+只返回JSON格式，不要包含其他内容。如果某字段无法确定，设为空字符串。"""
+        }]
+
+        result = await ai_service.chat_daily(messages, temperature=0.3, max_tokens=2048)
+        content = result["choices"][0]["message"]["content"]
+        extracted = ai_agents._parse_json(content)
+
+        return {
+            "query": request.query,
+            "search_type": request.search_type,
+            "results": results,
+            "extracted": extracted,
+        }
+
+    except Exception as e:
+        logger.error(f"Web search error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"网络搜索失败: {str(e)}")
 
 
 # ═══════════════════════════════════════
@@ -324,7 +387,6 @@ async def ai_website_analyze(request: WebsiteAnalyzeRequest):
 @router.post("/search")
 async def ai_natural_search(request: AISearchRequest):
     """自然语言搜索（语义理解）"""
-    # 解析查询意图
     parsed = await ai_agents.parse_nl_query(request.query)
     return {
         "query": request.query,
@@ -406,8 +468,7 @@ async def ai_document_verify(
     ocr_a = await ai_service.vision_ocr(content_a, "提取该单据的关键信息为JSON格式。")
     ocr_b = await ai_service.vision_ocr(content_b, "提取该单据的关键信息为JSON格式。")
 
-    from app.ai_agents import ai_agents as agents
-    result = await agents.verify_documents(
+    result = await ai_agents.verify_documents(
         {"content": ocr_a["choices"][0]["message"]["content"]},
         {"content": ocr_b["choices"][0]["message"]["content"]},
     )
@@ -444,3 +505,26 @@ async def ai_image_generate(
     """AI 图片生成"""
     images = await ai_service.generate_image(prompt, negative_prompt, width, height)
     return {"images": images}
+
+
+# ═══════════════════════════════════════
+# API 配置状态检查
+# ═══════════════════════════════════════
+
+@router.get("/config/status")
+async def ai_config_status():
+    """检查 AI API 配置状态"""
+    return {
+        "is_configured": ai_service.is_configured,
+        "api_key_masked": (settings.SILICONFLOW_API_KEY[:10] + "..." + settings.SILICONFLOW_API_KEY[-4:])
+            if settings.SILICONFLOW_API_KEY else "",
+        "base_url": settings.SILICONFLOW_BASE_URL,
+        "models": {
+            "daily": settings.AI_MODEL_DAILY,
+            "complex": settings.AI_MODEL_COMPLEX,
+            "vision": settings.AI_MODEL_VISION,
+            "embed_zh": settings.AI_MODEL_EMBED_ZH,
+            "embed_en": settings.AI_MODEL_EMBED_EN,
+            "image": settings.AI_MODEL_IMAGE,
+        }
+    }

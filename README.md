@@ -7,7 +7,8 @@
 | 层级 | 技术 |
 |------|------|
 | 前端 | Vue 3 + Element Plus + Vite + Pinia + ECharts |
-| 后端 | Python FastAPI + SQLAlchemy + PostgreSQL |
+| 后端 | Python FastAPI + SQLAlchemy + SQLite/PostgreSQL |
+| 数据库 | Cloudflare D1 (全球边缘) / SQLite (本地) |
 | AI | SiliconCloud API (Qwen2.5 / DeepSeek-V2.5 / BGE / SD3.5) |
 
 ## 功能模块
@@ -25,6 +26,8 @@
 | 装运管理 | 提单/发票 OCR + 数据一致性比对 |
 | 收付款管理 | 信用评估 + 回款预测 |
 | 文档管理 | AI 自动分类 + 全文搜索 |
+| 智能搜索 | AI 网络搜索 + 信息提取 (公司/产品/HS编码/贸易政策) |
+| API 管理 | SiliconFlow API 配置 + 模型选型 + 费用估算 |
 
 ## 快速开始
 
@@ -98,6 +101,21 @@ npm run dev
 └── docs/
     └── siliconflow-ai-architecture.md  # AI架构文档
 ```
+
+## Cloudflare D1 数据库部署
+
+```bash
+# 1. 创建 D1 数据库
+wrangler d1 create ai-trade-db
+
+# 2. 初始化表结构
+wrangler d1 execute ai-trade-db --file=cloudflare/schema.sql
+
+# 3. 部署 Worker 代理
+wrangler deploy
+```
+
+详见 [DEPLOY_CLOUDFLARE_D1.md](./DEPLOY_CLOUDFLARE_D1.md)
 
 ## AI 模型成本
 

@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-const BASE_URL = 'https://ai-trade-platform-api.onrender.com/api'
+// 开发环境使用本地代理，生产环境使用部署地址
+const BASE_URL = import.meta.env.DEV ? '/api' : 'https://ai-trade-platform-api.onrender.com/api'
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -70,6 +71,9 @@ export const aiAPI = {
   embed: (data) => api.post('/ai/embed', data),
   imageGenerate: (formData) => api.post('/ai/image/generate', formData),
   websiteAnalyze: (data) => api.post('/ai/website/analyze', data),
+  webSearch: (data) => api.post('/ai/web-search', data),
+  smartFill: (data) => api.post('/ai/smart-fill', data),
+  configStatus: () => api.get('/ai/config/status'),
 }
 
 export default api

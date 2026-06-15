@@ -11,10 +11,6 @@ from app.database import get_db
 from app.models import RecordStatus
 
 
-def _like_filter(column, keyword: str):
-    return column.ilike(f"%{keyword}%")
-
-
 def create_crud_router(
     prefix: str,
     model: Type,
@@ -23,6 +19,7 @@ def create_crud_router(
     response_schema: Type,
     tags: list[str],
     search_fields: list[str] = None,
+    require_auth: bool = True,
 ) -> APIRouter:
     """通用 CRUD 路由工厂"""
 
@@ -30,7 +27,16 @@ def create_crud_router(
 
     model_name = model.__name__
 
-    @router.get("", response_model=dict)
+    # 可选的认证依赖
+    dependencies = []
+    if require_auth:
+        try:
+            from app.routers.auth import get_current_user
+            dependencies = [Depends(get_current_user)]
+        except ImportError:
+            pass
+
+    @router.get("", response_model=dict, dependencies=dependencies)
     async def list_items(
         page: int = Query(1, ge=1),
         page_size: int = Query(20, ge=1, le=100),
@@ -85,72 +91,66 @@ def create_crud_router(
         result = await db.execute(query)
         items = result.scalars().all()
 
+        # 序列化
+        serialized = []
+        for item in items:
+            d = {}
+            for col in item.__table__.columns:
+                val = getattr(item, col.name)
+                d[col.name] = str(val) if isinstance(val, (uuid.UUID,)) else val
+            serialized.append(d)
+
         return {
             "total": total,
             "page": page,
             "page_size": page_size,
-            "items": [response_schema.from_orm(item).dict() for item in items],
+            "items": serialized,
         }
 
-    @router.get("/{item_id}", response_model=response_schema)
+    @router.get("/{item_id}", dependencies=dependencies)
     async def get_item(item_id: str, db: AsyncSession = Depends(get_db)):
         """获取单个记录"""
         result = await db.execute(select(model).where(model.id == item_id))
         item = result.scalar_one_or_none()
         if not item:
             return {"detail": f"{model_name} not found"}
-        return item
+        d = {}
+        for col in item.__table__.columns:
+            val = getattr(item, col.name)
+            d[col.name] = str(val) if isinstance(val, (uuid.UUID,)) else val
+        return d
 
-    @router.post("", response_model=response_schema, status_code=201)
+    @router.post("", status_code=201, dependencies=dependencies)
     async def create_item(data: create_schema, db: AsyncSession = Depends(get_db)):
         """新增记录"""
         try:
-            # 清理数据：空字符串和空列表 → None
             data_dict = {}
             for k, v in data.dict(exclude_unset=True).items():
                 if v == "" or v == []:
                     data_dict[k] = None
                 else:
                     data_dict[k] = v
-            
-            # 处理需要自动生成唯一标识的字段
+
             if hasattr(model, "order_no"):
                 data_dict.setdefault("order_no", f"ORD-{uuid.uuid4().hex[:8].upper()}")
             if hasattr(model, "contract_no"):
                 data_dict.setdefault("contract_no", f"CTR-{uuid.uuid4().hex[:8].upper()}")
             if hasattr(model, "code"):
                 data_dict.setdefault("code", f"{prefix.upper()[:3]}-{uuid.uuid4().hex[:8].upper()}")
-            
+
             item = model(**data_dict)
             db.add(item)
             await db.flush()
             await db.refresh(item)
-            return item
+            d = {}
+            for col in item.__table__.columns:
+                val = getattr(item, col.name)
+                d[col.name] = str(val) if isinstance(val, (uuid.UUID,)) else val
+            return d
         except Exception as e:
-            # 检查是否是数据库约束错误（列不允许 NULL）
-            error_msg = str(e)
-            if "not null" in error_msg.lower() or "cannot be null" in error_msg.lower():
-                # 尝试自动修复：执行 ALTER TABLE（仅限 inquiries 表）
-                if model.__tablename__ == "inquiries":
-                    try:
-                        await db.rollback()
-                        # 执行数据库迁移
-                        await db.execute(text("""
-                            ALTER TABLE inquiries 
-                            ALTER COLUMN quantity DROP NOT NULL,
-                            ALTER COLUMN target_price DROP NOT NULL
-                        """))
-                        await db.commit()
-                        print(f"✓ 自动修复：inquiries 表的列已设置为可空，请重新提交")
-                        raise Exception("数据库表结构已自动修复，请重新提交表单")
-                    except Exception as migrate_error:
-                        await db.rollback()
-                        print(f"✗ 自动修复失败：{str(migrate_error)}")
-            
-            # 重新抛出异常
             raise
 
-    @router.put("/{item_id}", response_model=response_schema)
+    @router.put("/{item_id}", dependencies=dependencies)
     async def update_item(item_id: str, data: update_schema, db: AsyncSession = Depends(get_db)):
         """编辑记录"""
         result = await db.execute(select(model).where(model.id == item_id))
@@ -158,16 +158,19 @@ def create_crud_router(
         if not item:
             return {"detail": f"{model_name} not found"}
         for key, value in data.dict(exclude_unset=True).items():
-            # 清理：空字符串/空列表 → None
             if value == "" or value == []:
                 setattr(item, key, None)
             else:
                 setattr(item, key, value)
         await db.flush()
         await db.refresh(item)
-        return item
+        d = {}
+        for col in item.__table__.columns:
+            val = getattr(item, col.name)
+            d[col.name] = str(val) if isinstance(val, (uuid.UUID,)) else val
+        return d
 
-    @router.delete("/{item_id}")
+    @router.delete("/{item_id}", dependencies=dependencies)
     async def delete_item(item_id: str, permanent: bool = False, db: AsyncSession = Depends(get_db)):
         """软删除（默认）或永久删除"""
         result = await db.execute(select(model).where(model.id == item_id))
@@ -181,7 +184,7 @@ def create_crud_router(
             item.status = RecordStatus.DELETED
         return {"detail": "Moved to recycle bin"}
 
-    @router.post("/{item_id}/restore")
+    @router.post("/{item_id}/restore", dependencies=dependencies)
     async def restore_item(item_id: str, db: AsyncSession = Depends(get_db)):
         """从回收站还原"""
         result = await db.execute(select(model).where(model.id == item_id))
@@ -192,7 +195,7 @@ def create_crud_router(
             item.status = RecordStatus.ACTIVE
         return {"detail": "Restored"}
 
-    @router.post("/batch-delete")
+    @router.post("/batch-delete", dependencies=dependencies)
     async def batch_delete(ids: list[str], db: AsyncSession = Depends(get_db)):
         """批量软删除"""
         result = await db.execute(select(model).where(model.id.in_(ids)))

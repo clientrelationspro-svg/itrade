@@ -3,100 +3,63 @@ AI 外贸工作平台 - FastAPI 主应用
 """
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.config import get_settings
-from app.database import init_db, async_session
+from app.database import init_db, async_session, get_db
 from app.routers import crud, ai, auth
 from app import models, schemas
 
 settings = get_settings()
 
-# Ensure upload directory exists before app starts
+# Ensure upload directory exists
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: 执行数据库迁移
+    # Startup: 初始化数据库
+    await init_db()
+    print("✓ 数据库表初始化完成")
+
+    # 执行迁移
     async with async_session() as session:
         try:
-            # 检查并执行数据库迁移
-            
-            # 1. 修改 inquiries 表的列约束允许 NULL
-            try:
-                # 先检查列是否允许 NULL
+            # 检查 SQLite 中 inquiries 表
+            if "sqlite" in settings.DATABASE_URL:
+                # SQLite: 使用 PRAGMA 检查
+                result = await session.execute(text("PRAGMA table_info(inquiries)"))
+                columns = {row[1]: row[3] for row in result.fetchall()}
+                for col in ["quantity", "target_price"]:
+                    if col in columns and columns[col] == 1:  # not null
+                        print(f"ℹ SQLite 不支持直接 ALTER COLUMN，跳过 {col} 迁移")
+            else:
+                # PostgreSQL: 标准 ALTER
                 result = await session.execute(text("""
                     SELECT column_name, is_nullable 
                     FROM information_schema.columns 
                     WHERE table_name = 'inquiries' 
                     AND column_name IN ('quantity', 'target_price')
                 """))
-                columns = result.fetchall()
-                
-                # 如果 quantity 列不可空，执行 ALTER TABLE
-                quantity_nullable = any(col[0] == 'quantity' and col[1] == 'YES' for col in columns)
-                target_price_nullable = any(col[0] == 'target_price' and col[1] == 'YES' for col in columns)
-                
-                if not quantity_nullable or not target_price_nullable:
+                cols = result.fetchall()
+                needs_migration = any(col[1] == 'NO' for col in cols)
+                if needs_migration:
                     await session.execute(text("""
                         ALTER TABLE inquiries 
                         ALTER COLUMN quantity DROP NOT NULL,
                         ALTER COLUMN target_price DROP NOT NULL
                     """))
                     await session.commit()
-                    print("✓ 数据库迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空")
-                else:
-                    print("ℹ 数据库迁移跳过：inquiries 表的列已经可空")
-                    
-            except Exception as e:
-                await session.rollback()
-                print(f"⚠ 数据库迁移失败（将在下次启动时重试）：{str(e)}")
-            
+                    print("✓ 数据库迁移完成")
         except Exception as e:
-            print(f"⚠ 数据库迁移检查失败：{str(e)}")
-    
+            await session.rollback()
+            print(f"⚠ 数据库迁移跳过: {e}")
+
     yield
     # Shutdown
-
-
-# ─── 手动迁移 API（必须在 CRUDF 路由之前定义）───
-@app.post("/api/admin/migrate-inquiries")
-async def migrate_inquiries(db: AsyncSession = Depends(get_db)):
-    """手动触发数据库迁移：修改 inquiries 表允许 NULL"""
-    try:
-        # 先检查列约束
-        result = await db.execute(text("""
-            SELECT column_name, is_nullable 
-            FROM information_schema.columns 
-            WHERE table_name = 'inquiries' 
-            AND column_name IN ('quantity', 'target_price')
-        """))
-        columns = result.fetchall()
-        
-        # 检查是否需要迁移
-        needs_migration = False
-        for col in columns:
-            if col[1] == 'NO':  # is_nullable = 'NO' 表示不可空
-                needs_migration = True
-                break
-        
-        if not needs_migration:
-            return {"status": "skipped", "message": "inquiries 表的列已经可空，无需迁移"}
-        
-        # 执行迁移
-        await db.execute(text("""
-            ALTER TABLE inquiries 
-            ALTER COLUMN quantity DROP NOT NULL,
-            ALTER COLUMN target_price DROP NOT NULL
-        """))
-        await db.commit()
-        return {"status": "success", "message": "迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空"}
-    except Exception as e:
-        await db.rollback()
-        return {"status": "error", "message": str(e)}
 
 
 app = FastAPI(
