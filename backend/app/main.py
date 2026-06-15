@@ -175,6 +175,23 @@ async def root():
     }
 
 
+@app.post("/api/admin/migrate-inquiries")
+async def migrate_inquiries(db: AsyncSession = Depends(get_db)):
+    """手动触发数据库迁移：修改 inquiries 表允许 NULL"""
+    try:
+        # 执行迁移
+        await db.execute(text("""
+            ALTER TABLE inquiries 
+            ALTER COLUMN quantity DROP NOT NULL,
+            ALTER COLUMN target_price DROP NOT NULL
+        """))
+        await db.commit()
+        return {"status": "success", "message": "迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空"}
+    except Exception as e:
+        await db.rollback()
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/api/dashboard")
 async def dashboard():
     """看板概览"""
