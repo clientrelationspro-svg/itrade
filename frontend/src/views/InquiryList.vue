@@ -66,7 +66,24 @@ const showCompare = ref(false); const compareResult = ref(null)
 const form = reactive({ customer_id:'', product_id:'', quantity:'', unit:'', target_price:'', currency:'USD', supplier_quotes:[], valid_until:'' })
 
 function openEdit(row) { editingId.value = row?.id || null; if (row) Object.assign(form, row); else Object.keys(form).forEach(k => form[k] = k==='supplier_quotes'?[]:(k==='currency'?'USD':'')); showEdit.value = true }
-async function save() { saving.value=true; try { editingId.value ? await api.update(editingId.value,form) : await api.create(form); ElMessage.success('保存成功'); showEdit.value=false; fetchList() } finally { saving.value=false } }
+
+async function save() { 
+  saving.value=true
+  try {
+    // 清理空值：空字符串和null值不发送到后端
+    const data = {}
+    for (const [key, value] of Object.entries(form)) {
+      if (value !== '' && value !== null && value !== undefined) {
+        data[key] = value
+      }
+    }
+    
+    editingId.value ? await api.update(editingId.value, data) : await api.create(data)
+    ElMessage.success('保存成功')
+    showEdit.value=false
+    fetchList()
+  } finally { saving.value=false }
+}
 async function compareQuotes(row) {
   try {
     compareResult.value = await aiAPI.compareQuotes({ quotes: row.supplier_quotes || [] })
