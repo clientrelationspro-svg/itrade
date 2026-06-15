@@ -231,6 +231,86 @@ async def ai_credit_assess(request: AICreditRequest, db: AsyncSession = Depends(
 
 
 # ═══════════════════════════════════════
+# 网站分析 - 自动提取客户信息
+# ═══════════════════════════════════════
+
+class WebsiteAnalyzeRequest(BaseModel):
+    website_url: str
+    fields: list[str] = ["name", "name_en", "country", "contact_person", "email", "phone", "address"]
+
+
+@router.post("/website/analyze")
+async def ai_website_analyze(request: WebsiteAnalyzeRequest):
+    """分析客户网站，自动提取客户信息"""
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        
+        # 1. 获取网页内容
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(request.website_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # 2. 解析 HTML
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 3. 提取文本内容（限制长度以避免 token 过多）
+        text_content = soup.get_text(separator=' ', strip=True)[:5000]
+        
+        # 4. 使用 AI 分析提取信息
+        messages = [{
+            "role": "user",
+            "content": f"""请分析以下公司网站内容，提取关键信息并以 JSON 格式返回。
+
+需要提取的字段：{', '.join(request.fields)}
+
+网站内容：
+{text_content}
+
+请严格按照以下 JSON 格式返回，不要包含其他内容：
+{{
+    "name": "公司名称（中文）",
+    "name_en": "公司英文名称",
+    "country": "所在国家",
+    "contact_person": "联系人姓名",
+    "email": "联系邮箱",
+    "phone": "联系电话",
+    "address": "公司地址",
+    "website": "{request.website_url}"
+}}
+如果某个字段无法提取，请设置为空字符串。"""
+        }]
+        
+        result = await ai_service.chat_daily(messages, temperature=0.3)
+        content = result["choices"][0]["message"]["content"]
+        
+        # 5. 解析 JSON 响应
+        import json
+        # 尝试提取 JSON（可能包含在 markdown 代码块中）
+        if "```json" in content:
+            json_str = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            json_str = content.split("```")[1].split("```")[0].strip()
+        else:
+            json_str = content.strip()
+        
+        parsed = json.loads(json_str)
+        return parsed
+        
+    except requests.RequestException as e:
+        logger.error(f"网站访问失败: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"无法访问网站: {str(e)}")
+    except json.JSONDecodeError as e:
+        logger.error(f"AI 响应解析失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="AI 分析结果解析失败")
+    except Exception as e:
+        logger.error(f"网站分析错误: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"网站分析失败: {str(e)}")
+
+
+# ═══════════════════════════════════════
 # 自然语言搜索
 # ═══════════════════════════════════════
 

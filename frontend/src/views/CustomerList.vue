@@ -99,6 +99,21 @@
             </el-form-item>
           </el-col>
           <el-col :span="24">
+            <el-form-item label="客户网站" prop="website">
+              <div style="display:flex;gap:8px;width:100%">
+                <el-input v-model="form.website" placeholder="请输入客户网站 URL" style="flex:1" />
+                <el-button 
+                  type="primary" 
+                  :icon="MagicStick" 
+                  :loading="websiteAnalyzing"
+                  @click="analyzeWebsite"
+                  :disabled="!form.website">
+                  AI 解析
+                </el-button>
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
             <el-form-item label="地址" prop="address">
               <el-input v-model="form.address" type="textarea" :rows="2" />
             </el-form-item>
@@ -155,11 +170,12 @@ const editingId = ref(null)
 const saving = ref(false)
 const selectedIds = ref([])
 const aiLoading = ref(false)
+const websiteAnalyzing = ref(false)
 const formRef = ref(null)
 
 const form = reactive({
   name: '', name_en: '', country: '', contact_person: '',
-  email: '', phone: '', address: '', tax_id: '', notes: '', tags: [],
+  email: '', phone: '', website: '', address: '', tax_id: '', notes: '', tags: [],
 })
 
 const rules = {
@@ -228,6 +244,34 @@ async function handleAIUpload(file) {
     ElMessage.error('AI 识别失败')
   } finally {
     aiLoading.value = false
+  }
+}
+
+async function analyzeWebsite() {
+  if (!form.website) {
+    ElMessage.warning('请先输入客户网站 URL')
+    return
+  }
+  
+  websiteAnalyzing.value = true
+  try {
+    const result = await aiAPI.websiteAnalyze({ website_url: form.website })
+    // 填充表单
+    if (result) {
+      if (result.name) form.name = result.name
+      if (result.name_en) form.name_en = result.name_en
+      if (result.country) form.country = result.country
+      if (result.contact_person) form.contact_person = result.contact_person
+      if (result.email) form.email = result.email
+      if (result.phone) form.phone = result.phone
+      if (result.address) form.address = result.address
+      if (result.website) form.website = result.website
+      ElMessage.success('AI 分析完成，请核对并确认')
+    }
+  } catch (e) {
+    ElMessage.error('AI 分析失败：' + (e.response?.data?.detail || e.message))
+  } finally {
+    websiteAnalyzing.value = false
   }
 }
 

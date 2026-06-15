@@ -109,6 +109,7 @@ class Customer(Base):
     contact_person = Column(String(100))
     email = Column(String(120))
     phone = Column(String(50))
+    website = Column(String(200))
     address = Column(Text)
     tax_id = Column(String(100))
     credit_rating = Column(String(20), default="medium")

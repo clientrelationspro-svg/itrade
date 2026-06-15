@@ -69,6 +69,7 @@ export const aiAPI = {
   documentVerify: (formData) => api.post('/ai/document/verify', formData),
   embed: (data) => api.post('/ai/embed', data),
   imageGenerate: (formData) => api.post('/ai/image/generate', formData),
+  websiteAnalyze: (data) => api.post('/ai/website/analyze', data),
 }
 
 export default api
