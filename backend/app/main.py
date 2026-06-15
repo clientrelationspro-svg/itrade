@@ -62,6 +62,43 @@ async def lifespan(app: FastAPI):
     # Shutdown
 
 
+# ─── 手动迁移 API（必须在 CRUDF 路由之前定义）───
+@app.post("/api/admin/migrate-inquiries")
+async def migrate_inquiries(db: AsyncSession = Depends(get_db)):
+    """手动触发数据库迁移：修改 inquiries 表允许 NULL"""
+    try:
+        # 先检查列约束
+        result = await db.execute(text("""
+            SELECT column_name, is_nullable 
+            FROM information_schema.columns 
+            WHERE table_name = 'inquiries' 
+            AND column_name IN ('quantity', 'target_price')
+        """))
+        columns = result.fetchall()
+        
+        # 检查是否需要迁移
+        needs_migration = False
+        for col in columns:
+            if col[1] == 'NO':  # is_nullable = 'NO' 表示不可空
+                needs_migration = True
+                break
+        
+        if not needs_migration:
+            return {"status": "skipped", "message": "inquiries 表的列已经可空，无需迁移"}
+        
+        # 执行迁移
+        await db.execute(text("""
+            ALTER TABLE inquiries 
+            ALTER COLUMN quantity DROP NOT NULL,
+            ALTER COLUMN target_price DROP NOT NULL
+        """))
+        await db.commit()
+        return {"status": "success", "message": "迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空"}
+    except Exception as e:
+        await db.rollback()
+        return {"status": "error", "message": str(e)}
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -173,42 +210,6 @@ async def root():
         "version": settings.APP_VERSION,
         "docs": "/docs",
     }
-
-
-@app.post("/api/admin/migrate-inquiries")
-async def migrate_inquiries(db: AsyncSession = Depends(get_db)):
-    """手动触发数据库迁移：修改 inquiries 表允许 NULL"""
-    try:
-        # 先检查列约束
-        result = await db.execute(text("""
-            SELECT column_name, is_nullable 
-            FROM information_schema.columns 
-            WHERE table_name = 'inquiries' 
-            AND column_name IN ('quantity', 'target_price')
-        """))
-        columns = result.fetchall()
-        
-        # 检查是否需要迁移
-        needs_migration = False
-        for col in columns:
-            if col[1] == 'NO':  # is_nullable = 'NO' 表示不可空
-                needs_migration = True
-                break
-        
-        if not needs_migration:
-            return {"status": "skipped", "message": "inquiries 表的列已经可空，无需迁移"}
-        
-        # 执行迁移
-        await db.execute(text("""
-            ALTER TABLE inquiries 
-            ALTER COLUMN quantity DROP NOT NULL,
-            ALTER COLUMN target_price DROP NOT NULL
-        """))
-        await db.commit()
-        return {"status": "success", "message": "迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空"}
-    except Exception as e:
-        await db.rollback()
-        return {"status": "error", "message": str(e)}
 
 
 @app.get("/api/dashboard")
