@@ -104,26 +104,36 @@ def create_crud_router(
     @router.post("", response_model=response_schema, status_code=201)
     async def create_item(data: create_schema, db: AsyncSession = Depends(get_db)):
         """新增记录"""
-        # 清理数据：空字符串和空列表 → None
-        data_dict = {}
-        for k, v in data.dict(exclude_unset=True).items():
-            if v == "" or v == []:
-                data_dict[k] = None
-            else:
-                data_dict[k] = v
-        # 处理需要自动生成唯一标识的字段
-        if hasattr(model, "order_no"):
-            data_dict.setdefault("order_no", f"ORD-{uuid.uuid4().hex[:8].upper()}")
-        if hasattr(model, "contract_no"):
-            data_dict.setdefault("contract_no", f"CTR-{uuid.uuid4().hex[:8].upper()}")
-        if hasattr(model, "code"):
-            data_dict.setdefault("code", f"{prefix.upper()[:3]}-{uuid.uuid4().hex[:8].upper()}")
-        
-        item = model(**data_dict)
-        db.add(item)
-        await db.flush()
-        await db.refresh(item)
-        return item
+        try:
+            # 清理数据：空字符串和空列表 → None
+            data_dict = {}
+            for k, v in data.dict(exclude_unset=True).items():
+                if v == "" or v == []:
+                    data_dict[k] = None
+                else:
+                    data_dict[k] = v
+            
+            # 打印调试信息
+            print(f"DEBUG: Creating {model_name} with data: {data_dict}")
+            
+            # 处理需要自动生成唯一标识的字段
+            if hasattr(model, "order_no"):
+                data_dict.setdefault("order_no", f"ORD-{uuid.uuid4().hex[:8].upper()}")
+            if hasattr(model, "contract_no"):
+                data_dict.setdefault("contract_no", f"CTR-{uuid.uuid4().hex[:8].upper()}")
+            if hasattr(model, "code"):
+                data_dict.setdefault("code", f"{prefix.upper()[:3]}-{uuid.uuid4().hex[:8].upper()}")
+            
+            item = model(**data_dict)
+            db.add(item)
+            await db.flush()
+            await db.refresh(item)
+            print(f"DEBUG: Successfully created {model_name} with id: {item.id}")
+            return item
+        except Exception as e:
+            print(f"ERROR: Failed to create {model_name}: {str(e)}")
+            print(f"ERROR: Data dict: {data_dict}")
+            raise
 
     @router.put("/{item_id}", response_model=response_schema)
     async def update_item(item_id: str, data: update_schema, db: AsyncSession = Depends(get_db)):
