@@ -260,14 +260,12 @@ async def ai_website_analyze(request: WebsiteAnalyzeRequest):
         text_content = soup.get_text(separator=' ', strip=True)[:5000]
         
         # 4. 使用 AI 分析提取信息
-        messages = [{
-            "role": "user",
-            "content": f"""请分析以下公司网站内容，提取关键信息并以 JSON 格式返回。
+        prompt = """请分析以下公司网站内容，提取关键信息并以 JSON 格式返回。
 
-需要提取的字段：{', '.join(request.fields)}
+需要提取的字段：{fields}
 
 网站内容：
-{text_content}
+{content}
 
 请严格按照以下 JSON 格式返回，不要包含其他内容：
 {{
@@ -278,9 +276,18 @@ async def ai_website_analyze(request: WebsiteAnalyzeRequest):
     "email": "联系邮箱",
     "phone": "联系电话",
     "address": "公司地址",
-    "website": "{request.website_url}"
+    "website": "{url}"
 }}
-如果某个字段无法提取，请设置为空字符串。"""
+
+如果某个字段无法提取，请设置为空字符串。""".format(
+    fields=', '.join(request.fields),
+    content=text_content,
+    url=request.website_url
+)
+
+        messages = [{
+            "role": "user",
+            "content": prompt
         }]
         
         result = await ai_service.chat_daily(messages, temperature=0.3)
