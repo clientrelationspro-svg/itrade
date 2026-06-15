@@ -23,18 +23,40 @@ async def lifespan(app: FastAPI):
     # Startup: 执行数据库迁移
     async with async_session() as session:
         try:
-            # 修改 inquiries 表的列约束允许 NULL
-            await session.execute(text("""
-                ALTER TABLE inquiries 
-                ALTER COLUMN quantity DROP NOT NULL,
-                ALTER COLUMN target_price DROP NOT NULL
-            """))
-            await session.commit()
-            print("✓ 数据库迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空")
+            # 检查并执行数据库迁移
+            
+            # 1. 修改 inquiries 表的列约束允许 NULL
+            try:
+                # 先检查列是否允许 NULL
+                result = await session.execute(text("""
+                    SELECT column_name, is_nullable 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'inquiries' 
+                    AND column_name IN ('quantity', 'target_price')
+                """))
+                columns = result.fetchall()
+                
+                # 如果 quantity 列不可空，执行 ALTER TABLE
+                quantity_nullable = any(col[0] == 'quantity' and col[1] == 'YES' for col in columns)
+                target_price_nullable = any(col[0] == 'target_price' and col[1] == 'YES' for col in columns)
+                
+                if not quantity_nullable or not target_price_nullable:
+                    await session.execute(text("""
+                        ALTER TABLE inquiries 
+                        ALTER COLUMN quantity DROP NOT NULL,
+                        ALTER COLUMN target_price DROP NOT NULL
+                    """))
+                    await session.commit()
+                    print("✓ 数据库迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空")
+                else:
+                    print("ℹ 数据库迁移跳过：inquiries 表的列已经可空")
+                    
+            except Exception as e:
+                await session.rollback()
+                print(f"⚠ 数据库迁移失败（将在下次启动时重试）：{str(e)}")
+            
         except Exception as e:
-            # 如果列已经是 nullable，忽略错误
-            await session.rollback()
-            print(f"ℹ 数据库迁移跳过（可能已完成）：{str(e)}")
+            print(f"⚠ 数据库迁移检查失败：{str(e)}")
     
     yield
     # Shutdown
