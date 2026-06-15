@@ -6,8 +6,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from app.config import get_settings
-from app.database import init_db
+from app.database import init_db, async_session
 from app.routers import crud, ai, auth
 from app import models, schemas
 
@@ -19,7 +20,22 @@ os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup: 执行数据库迁移
+    async with async_session() as session:
+        try:
+            # 修改 inquiries 表的列约束允许 NULL
+            await session.execute(text("""
+                ALTER TABLE inquiries 
+                ALTER COLUMN quantity DROP NOT NULL,
+                ALTER COLUMN target_price DROP NOT NULL
+            """))
+            await session.commit()
+            print("✓ 数据库迁移成功：inquiries 表的 quantity 和 target_price 列已设置为可空")
+        except Exception as e:
+            # 如果列已经是 nullable，忽略错误
+            await session.rollback()
+            print(f"ℹ 数据库迁移跳过（可能已完成）：{str(e)}")
+    
     yield
     # Shutdown
 
