@@ -17,33 +17,6 @@ AI 外贸工作平台，基于硅基流动 SiliconCloud 平台的开源模型服
 | 英文向量嵌入 | BAAI/bge-large-en-v1.5 |
 | 图片生成 | stabilityai/stable-diffusion-3.5-large |
 
-## 技术栈
-- 前端: Vue 3 + Element Plus + Vite + Pinia + ECharts
-- 后端: Python FastAPI + SQLAlchemy 2.0 (async) + PostgreSQL + pgvector
-- AI: SiliconCloud API 统一封装 (app/ai_service.py)，业务 Agent (app/ai_agents.py)
-- 部署: Docker Compose (PG16 + Redis + Backend + Frontend)
-
-## 项目结构
-- `backend/app/main.py` - FastAPI 入口，注册所有路由
-- `backend/app/models.py` - 14 个数据模型 (User/Customer/Supplier/Product/Inquiry/Contract/Order/OrderItem/Inspection/Shipment/Payment/Document/OperationLog/SystemSetting)
-- `backend/app/routers/crud.py` - 通用 CRUD 路由工厂，支持搜索/分页/软删除/批量操作
-- `backend/app/routers/ai.py` - 15+ AI 端点 (OCR/翻译/HS推荐/合同解析/报价对比/风险预警/信用评估/自然语言搜索/文档分类等)
-- `frontend/src/composables/useCrud.js` - 通用 CRUD 组合式函数
-- `frontend/src/views/` - 12 个页面组件，每个包含标准列表页 + 编辑弹窗 + AI 智能面板
-
 ## 项目约定
 - 文档存放于 `docs/` 目录
 - 配置文档使用中英双语
-- 所有删除操作默认为软删除 (status='deleted')
-- AI 识别结果采用"人在环中"模式，用户确认后写入数据库
-- 前端代理 `/api` → `localhost:8000`，`/uploads` → `localhost:8000`
-
-## 部署信息 (2026-06-15)
-- **前端生产**: https://frontend-ten-teal-98.vercel.app (Vercel CLI 部署)
-- **后端生产**: https://ai-trade-platform-api.onrender.com (Render Docker)
-- **数据库**: Render PostgreSQL (`postgresql+asyncpg://`)
-- **前端 API 配置**: `frontend/src/api/index.js` 硬编码 `BASE_URL = 'https://ai-trade-platform-api.onrender.com/api'`
-- **Vercel 配置**: `vercel.json` 用 `rewrites` 做 SPA 回退，`outputDirectory: frontend/dist`
-- **Dockerfile**: 项目根目录，`python:3.11-slim`，需 `libpq-dev`（asyncpg 编译依赖）
-- **关键依赖**: `pydantic==1.10.13`（避免 Rust 编译），无 `pydantic-settings`
-- **部署方式**: `npx vercel --prod --yes` 从项目根目录直接部署
