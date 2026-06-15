@@ -182,7 +182,20 @@ class ContractCreate(BaseModel):
     notes: Optional[str] = None
 
 
-class ContractUpdate(ContractCreate):
+class ContractUpdate(BaseModel):
+    contract_no: Optional[str] = None
+    title: Optional[str] = None
+    customer_id: Optional[str] = None
+    supplier_id: Optional[str] = None
+    amount: Optional[Decimal] = None
+    currency: Optional[str] = None
+    sign_date: Optional[date] = None
+    expiry_date: Optional[date] = None
+    delivery_date: Optional[date] = None
+    key_terms: Optional[str] = None
+    payment_terms: Optional[str] = None
+    attachments: Optional[List[str]] = None
+    notes: Optional[str] = None
     ai_extracted_terms: Optional[dict] = None
     risk_level: Optional[str] = None
 

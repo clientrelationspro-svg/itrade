@@ -234,7 +234,7 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
-    order_no = Column(String(100), unique=True, nullable=False, index=True)
+    order_no = Column(String(100), unique=True, nullable=False, index=True, default=lambda: f"ORD-{uuid.uuid4().hex[:8].upper()}")
     customer_id = Column(String(36), ForeignKey("customers.id"))
     contract_id = Column(String(36), ForeignKey("contracts.id"))
     total_amount = Column(Numeric(14, 2))
