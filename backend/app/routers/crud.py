@@ -113,9 +113,6 @@ def create_crud_router(
                 else:
                     data_dict[k] = v
             
-            # 打印调试信息
-            print(f"DEBUG: Creating {model_name} with data: {data_dict}")
-            
             # 处理需要自动生成唯一标识的字段
             if hasattr(model, "order_no"):
                 data_dict.setdefault("order_no", f"ORD-{uuid.uuid4().hex[:8].upper()}")
@@ -128,11 +125,29 @@ def create_crud_router(
             db.add(item)
             await db.flush()
             await db.refresh(item)
-            print(f"DEBUG: Successfully created {model_name} with id: {item.id}")
             return item
         except Exception as e:
-            print(f"ERROR: Failed to create {model_name}: {str(e)}")
-            print(f"ERROR: Data dict: {data_dict}")
+            # 检查是否是数据库约束错误（列不允许 NULL）
+            error_msg = str(e)
+            if "not null" in error_msg.lower() or "cannot be null" in error_msg.lower():
+                # 尝试自动修复：执行 ALTER TABLE（仅限 inquiries 表）
+                if model.__tablename__ == "inquiries":
+                    try:
+                        await db.rollback()
+                        # 执行数据库迁移
+                        await db.execute(text("""
+                            ALTER TABLE inquiries 
+                            ALTER COLUMN quantity DROP NOT NULL,
+                            ALTER COLUMN target_price DROP NOT NULL
+                        """))
+                        await db.commit()
+                        print(f"✓ 自动修复：inquiries 表的列已设置为可空，请重新提交")
+                        raise Exception("数据库表结构已自动修复，请重新提交表单")
+                    except Exception as migrate_error:
+                        await db.rollback()
+                        print(f"✗ 自动修复失败：{str(migrate_error)}")
+            
+            # 重新抛出异常
             raise
 
     @router.put("/{item_id}", response_model=response_schema)
