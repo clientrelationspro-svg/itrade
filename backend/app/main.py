@@ -179,6 +179,25 @@ async def root():
 async def migrate_inquiries(db: AsyncSession = Depends(get_db)):
     """手动触发数据库迁移：修改 inquiries 表允许 NULL"""
     try:
+        # 先检查列约束
+        result = await db.execute(text("""
+            SELECT column_name, is_nullable 
+            FROM information_schema.columns 
+            WHERE table_name = 'inquiries' 
+            AND column_name IN ('quantity', 'target_price')
+        """))
+        columns = result.fetchall()
+        
+        # 检查是否需要迁移
+        needs_migration = False
+        for col in columns:
+            if col[1] == 'NO':  # is_nullable = 'NO' 表示不可空
+                needs_migration = True
+                break
+        
+        if not needs_migration:
+            return {"status": "skipped", "message": "inquiries 表的列已经可空，无需迁移"}
+        
         # 执行迁移
         await db.execute(text("""
             ALTER TABLE inquiries 
