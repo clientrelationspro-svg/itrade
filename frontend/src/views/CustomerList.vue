@@ -39,6 +39,11 @@
       <el-table-column prop="contact_person" label="联系人" width="100" />
       <el-table-column prop="email" label="邮箱" width="160" />
       <el-table-column prop="phone" label="电话" width="130" />
+      <el-table-column label="最后更新时间" width="160">
+        <template #default="{row}">
+          {{ row.updated_at ? dayjs(row.updated_at).format('YYYY-MM-DD HH:mm') : '-' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="credit_rating" label="信用评级" width="100">
         <template #default="{row}">
           <el-tag :type="creditTag(row.credit_rating)" size="small">{{ row.credit_rating || '-' }}</el-tag>
@@ -158,6 +163,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { useCrud } from '@/composables/useCrud'
 import { aiAPI, createAPI } from '@/api'
 import { ElMessage } from 'element-plus'
@@ -288,5 +294,7 @@ function creditTag(rating) {
   return map[rating] || 'info'
 }
 
+query.sortBy = 'updated_at'
+query.sortOrder = 'desc'
 onMounted(fetchList)
 </script>

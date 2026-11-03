@@ -44,8 +44,8 @@ def create_crud_router(
         status: str = Query(None),
         date_from: Optional[str] = Query(None),
         date_to: Optional[str] = Query(None),
-        sort_by: str = Query("created_at"),
-        sort_order: str = Query("desc"),
+        sort_by: str = Query("created_at", alias="sortBy"),
+        sort_order: str = Query("desc", alias="sortOrder"),
         db: AsyncSession = Depends(get_db),
     ):
         """标准列表页 - 支持搜索/筛选/分页/排序"""
